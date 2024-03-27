@@ -1,89 +1,89 @@
-const express = require("express");
+const express = require('express');
+
 const app = express();
-require("dotenv").config();
+require('dotenv').config();
+const cors = require('cors');
+const Phonebook = require('./models/phonebook');
 
-const Phonebook = require("./models/phonebook");
-
-app.use(express.static("dist"));
+app.use(express.static('dist'));
 
 const requestLogger = (request, response, next) => {
-  console.log("Method:", request.method);
-  console.log("Path:  ", request.path);
-  console.log("Body:  ", request.body);
-  console.log("---");
+  console.log('Method:', request.method);
+  console.log('Path:  ', request.path);
+  console.log('Body:  ', request.body);
+  console.log('---');
   next();
 };
 
 const errorHandler = (error, request, response, next) => {
   console.error(error.message);
 
-  if (error.name === "CastError") {
-    return response.status(400).send({ error: "malformatted id" });
-  } else if (error.name === "ValidationError") {
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'malformatted id' });
+  } if (error.name === 'ValidationError') {
     return response.status(400).json({ error: error.message });
-  } else if (error.name === "ValidationError") {
+  } if (error.name === 'ValidationError') {
     return response.status(400).json({ error: error.message });
   }
-  next(error);
+  return next(error);
 };
-
-const cors = require("cors");
 
 app.use(cors());
 app.use(express.json());
 app.use(requestLogger);
 
 const unknownEndpoint = (request, response) => {
-  response.status(404).send({ error: "unknown endpoint" });
+  response.status(404).send({ error: 'unknown endpoint' });
 };
 
-app.get("/info", (req, res) => {
+app.get('/info', (req, res) => {
   const total = Phonebook.length;
   const date = new Date();
   res.send(`Phonebook has info for ${total}  people <br>${date}`);
 });
 
-app.get("/api/phonebook", (req, res) => {
+app.get('/api/phonebook', (req, res) => {
   Phonebook.find({}).then((p) => {
     res.json(p);
   });
 });
 
-app.get("/api/phonebook/:id", (req, res, next) => {
-  Phonebook.findById(request.params.id)
+app.get('/api/phonebook/:id', (req, res, next) => {
+  Phonebook.findById(req.params.id)
     .then((p) => {
       if (p) {
-        response.json(p);
+        res.json(p);
       } else {
-        response.status(404).end();
+        res.status(404).end();
       }
     })
     .catch((error) => next(error));
 });
 
-app.delete("/api/phonebook/:id", (request, response, next) => {
+app.delete('/api/phonebook/:id', (request, response, next) => {
   Phonebook.findByIdAndDelete(request.params.id)
-    .then((result) => {
+    .then(() => {
       response.status(204).end();
     })
     .catch((error) => next(error));
 });
 
-app.post("/api/phonebook", (req, res, next) => {
-  const body = req.body;
+app.post('/api/phonebook', (req, res, next) => {
+  const { body } = req;
 
   if (!body.name || !body.phone) {
     return res.status(400).json({
-      error: "content missing",
+      error: 'content missing',
     });
   }
 
   const nameExist = Phonebook.some((p) => p.name === body.name);
 
-  if (nameExist)
+  if (nameExist) {
     return res.status(400).json({
-      error: "name must be unique",
+      error: 'name must be unique',
     });
+  }
 
   const person = new Phonebook({
     name: body.name,
@@ -101,7 +101,7 @@ app.post("/api/phonebook", (req, res, next) => {
 app.use(unknownEndpoint);
 app.use(errorHandler);
 
-const PORT = process.env.PORT;
+const { PORT } = process.env;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
