@@ -1,19 +1,22 @@
 const express = require('express');
 
 const app = express();
-require('dotenv').config();
 const cors = require('cors');
-const Phonebook = require('./models/phonebook');
+const mongoose = require('mongoose');
 
-app.use(express.static('dist'));
+require('dotenv').config();
 
-const requestLogger = (request, response, next) => {
-  console.log('Method:', request.method);
-  console.log('Path:  ', request.path);
-  console.log('Body:  ', request.body);
-  console.log('---');
-  next();
-};
+const mongoUrl = process.env.MONGODB_URI;
+
+mongoose.connect(mongoUrl)
+  .then(() => {
+    console.log('Connected to MongoDB');
+  })
+  .catch((error) => {
+    console.error('Error connecting to MongoDB:', error.message);
+  });
+
+const Person = require('./models/phonebook');
 
 const errorHandler = (error, request, response, next) => {
   console.error(error.message);
@@ -22,34 +25,30 @@ const errorHandler = (error, request, response, next) => {
     return response.status(400).send({ error: 'malformatted id' });
   } if (error.name === 'ValidationError') {
     return response.status(400).json({ error: error.message });
-  } if (error.name === 'ValidationError') {
+  } if (error.phone === 'ValidationError') {
     return response.status(400).json({ error: error.message });
   }
   return next(error);
 };
 
+app.use(express.static('dist'));
 app.use(cors());
 app.use(express.json());
-app.use(requestLogger);
-
-const unknownEndpoint = (request, response) => {
-  response.status(404).send({ error: 'unknown endpoint' });
-};
 
 app.get('/info', (req, res) => {
-  const total = Phonebook.length;
+  const total = Person.length;
   const date = new Date();
   res.send(`Phonebook has info for ${total}  people <br>${date}`);
 });
 
 app.get('/api/phonebook', (req, res) => {
-  Phonebook.find({}).then((p) => {
+  Person.find({}).then((p) => {
     res.json(p);
   });
 });
 
 app.get('/api/phonebook/:id', (req, res, next) => {
-  Phonebook.findById(req.params.id)
+  Person.findById(req.params.id)
     .then((p) => {
       if (p) {
         res.json(p);
@@ -61,7 +60,7 @@ app.get('/api/phonebook/:id', (req, res, next) => {
 });
 
 app.delete('/api/phonebook/:id', (request, response, next) => {
-  Phonebook.findByIdAndDelete(request.params.id)
+  Person.findByIdAndDelete(request.params.id)
     .then(() => {
       response.status(204).end();
     })
@@ -77,15 +76,7 @@ app.post('/api/phonebook', (req, res, next) => {
     });
   }
 
-  const nameExist = Phonebook.some((p) => p.name === body.name);
-
-  if (nameExist) {
-    return res.status(400).json({
-      error: 'name must be unique',
-    });
-  }
-
-  const person = new Phonebook({
+  const person = new Person({
     name: body.name,
     phone: body.phone,
   });
@@ -98,7 +89,6 @@ app.post('/api/phonebook', (req, res, next) => {
     .catch((error) => next(error));
 });
 
-app.use(unknownEndpoint);
 app.use(errorHandler);
 
 const { PORT } = process.env;
